@@ -1,0 +1,1325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Options P&L">
+<title>Options P&L Calculator</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080c10;
+    --surface: #0d1117;
+    --border: #1e2a38;
+    --accent: #00e5ff;
+    --green: #00ff88;
+    --red: #ff3d5a;
+    --muted: #3a4a5c;
+    --text: #c9d6e3;
+    --dim: #607080;
+    --mono: 'Share Tech Mono', monospace;
+    --sans: 'Barlow', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 32px 24px;
+  }
+
+  header {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 36px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 20px;
+    flex-wrap: wrap;
+  }
+
+  .live-status {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #0a1017;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 5px 14px 5px 10px;
+  }
+
+  .status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--dim);
+    flex-shrink: 0;
+    transition: background 0.4s;
+  }
+
+  .status-dot.connecting {
+    background: var(--accent);
+    animation: pulse 1s infinite;
+  }
+
+  .status-dot.live {
+    background: var(--green);
+    animation: pulse 2s infinite;
+    box-shadow: 0 0 8px rgba(0,255,136,0.5);
+  }
+
+  .status-dot.offline {
+    background: var(--red);
+    animation: none;
+  }
+
+  .status-text {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    transition: color 0.4s;
+  }
+
+  .status-text.live { color: var(--green); }
+  .status-text.offline { color: var(--red); }
+
+  header h1 {
+    font-family: var(--mono);
+    font-size: 1.4rem;
+    color: var(--accent);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  header .tag {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--dim);
+    background: #0d1a24;
+    border: 1px solid var(--border);
+    padding: 2px 8px;
+    border-radius: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 24px;
+  }
+
+  .panel-title {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .panel-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .field {
+    margin-bottom: 16px;
+  }
+
+  label {
+    display: block;
+    font-size: 0.72rem;
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 6px;
+    font-family: var(--mono);
+  }
+
+  input[type="number"], input[type="text"], select {
+    width: 100%;
+    background: #060a0e;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 0.95rem;
+    padding: 9px 12px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  input:focus, select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px rgba(0,229,255,0.15);
+  }
+
+  select option { background: #0d1117; }
+
+  .type-toggle {
+    display: flex;
+    gap: 0;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .type-toggle button {
+    flex: 1;
+    padding: 9px;
+    background: transparent;
+    border: none;
+    color: var(--dim);
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .type-toggle button.active-call {
+    background: rgba(0,255,136,0.12);
+    color: var(--green);
+  }
+
+  .type-toggle button.active-put {
+    background: rgba(255,61,90,0.12);
+    color: var(--red);
+  }
+
+  .pos-toggle {
+    display: flex;
+    gap: 0;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .pos-toggle button {
+    flex: 1;
+    padding: 9px;
+    background: transparent;
+    border: none;
+    color: var(--dim);
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .pos-toggle button.active {
+    background: rgba(0,229,255,0.1);
+    color: var(--accent);
+  }
+
+  .slider-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  input[type="range"] {
+    flex: 1;
+    -webkit-appearance: none;
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    background: var(--accent);
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 0 8px rgba(0,229,255,0.5);
+  }
+
+  input[type="date"] {
+    width: 100%;
+    background: #060a0e;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 0.95rem;
+    padding: 9px 12px;
+    outline: none;
+    transition: border-color 0.2s;
+    -webkit-appearance: none;
+    color-scheme: dark;
+  }
+
+  input[type="date"]:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px rgba(0,229,255,0.15);
+  }
+
+  .calc-btn {
+    width: 100%;
+    margin-top: 8px;
+    padding: 12px;
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .calc-btn:hover {
+    background: rgba(0,229,255,0.08);
+    box-shadow: 0 0 16px rgba(0,229,255,0.2);
+  }
+
+  /* Results */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .stat-card {
+    background: #060a0e;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 14px 16px;
+  }
+
+  .stat-label {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-bottom: 6px;
+  }
+
+  .stat-value {
+    font-family: var(--mono);
+    font-size: 1.2rem;
+    color: var(--text);
+  }
+
+  .stat-value.pos { color: var(--green); }
+  .stat-value.neg { color: var(--red); }
+  .stat-value.accent { color: var(--accent); }
+
+  /* Annualized Return Banner */
+  .ann-banner {
+    background: linear-gradient(135deg, #0a1628 0%, #0d1f1a 100%);
+    border: 1px solid rgba(0,255,136,0.25);
+    border-radius: 4px;
+    padding: 20px 24px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    flex-wrap: wrap;
+  }
+
+  .ann-main {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    min-width: 140px;
+  }
+
+  .ann-label {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    margin-bottom: 2px;
+  }
+
+  .ann-return {
+    font-family: var(--mono);
+    font-size: 2.6rem;
+    font-weight: 700;
+    color: var(--green);
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+
+  .ann-return.neg { color: var(--red); }
+
+  .ann-sub {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-top: 4px;
+  }
+
+  .ann-details {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+
+  .ann-detail-item {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .ann-detail-label {
+    font-family: var(--mono);
+    font-size: 0.62rem;
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  .ann-detail-val {
+    font-family: var(--mono);
+    font-size: 0.95rem;
+    color: var(--text);
+  }
+
+  .ann-note {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--dim);
+    line-height: 1.6;
+    flex-basis: 100%;
+    margin-top: 4px;
+    border-top: 1px solid rgba(255,255,255,0.05);
+    padding-top: 10px;
+  }
+
+  .ann-note:empty { display: none; }
+  .chart-container {
+    position: relative;
+    width: 100%;
+    height: 300px;
+    background: #060a0e;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .chart-label {
+    position: absolute;
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  /* Greeks */
+  .greeks-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    margin-top: 14px;
+  }
+
+  .greek-card {
+    background: #060a0e;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 10px 12px;
+    text-align: center;
+  }
+
+  .greek-name {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 4px;
+  }
+
+  .greek-val {
+    font-family: var(--mono);
+    font-size: 0.9rem;
+    color: var(--accent);
+  }
+
+  .placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .placeholder::before {
+    content: '▷';
+    font-size: 1.8rem;
+    color: var(--border);
+  }
+
+  .crosshair-line {
+    position: absolute;
+    pointer-events: none;
+  }
+
+  .tooltip-box {
+    position: absolute;
+    background: #0d1117;
+    border: 1px solid var(--accent);
+    border-radius: 3px;
+    padding: 8px 12px;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--text);
+    pointer-events: none;
+    display: none;
+    z-index: 10;
+    white-space: nowrap;
+  }
+
+  .days-display {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--dim);
+    margin-top: 6px;
+  }
+
+  .ticker-wrap {
+    position: relative;
+  }
+
+  .ticker-status {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    margin-top: 6px;
+    min-height: 16px;
+    transition: all 0.2s;
+  }
+
+  .ticker-status.loading { color: var(--dim); }
+  .ticker-status.success { color: var(--green); }
+  .ticker-status.error   { color: var(--red); }
+
+  .ticker-name {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--accent);
+    margin-top: 3px;
+    min-height: 14px;
+  }
+
+  .live-dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--green);
+    margin-right: 5px;
+    animation: pulse 1.5s infinite;
+    vertical-align: middle;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  .server-notice {
+    background: rgba(0,229,255,0.05);
+    border: 1px solid rgba(0,229,255,0.15);
+    border-radius: 3px;
+    padding: 10px 12px;
+    margin-bottom: 18px;
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    color: var(--dim);
+    line-height: 1.6;
+  }
+
+  .server-notice span { color: var(--accent); }
+
+  @media (max-width: 768px) {
+    .grid { grid-template-columns: 1fr; }
+    .stats-row { grid-template-columns: repeat(2, 1fr); }
+    .greeks-row { grid-template-columns: repeat(3, 1fr); }
+    .container { padding: 16px 14px; }
+    header h1 { font-size: 1.1rem; }
+    .chart-container { height: 240px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>Options P&amp;L Calculator</h1>
+    <span class="tag">Black-Scholes Model</span>
+    <span class="tag">yfinance</span>
+    <div class="live-status" id="live-status">
+      <span class="status-dot" id="status-dot"></span>
+      <span class="status-text" id="status-text">Connecting...</span>
+    </div>
+  </header>
+
+  <div class="grid">
+    <!-- LEFT: Inputs -->
+    <div class="panel">
+      <div class="panel-title">Position Setup</div>
+
+      <div class="field">
+        <label>Ticker Symbol</label>
+        <div class="ticker-wrap">
+          <input type="text" id="ticker" value="AAPL" style="text-transform:uppercase"
+            oninput="onTickerInput(this.value)"
+            onkeydown="if(event.key==='Enter'){clearTimeout(fetchTimer);fetchQuote();}" />
+        </div>
+        <div class="ticker-status" id="ticker-status"></div>
+        <div class="ticker-name" id="ticker-name"></div>
+      </div>
+
+      <div class="field">
+        <label>Option Type</label>
+        <div class="type-toggle">
+          <button id="btn-call" class="active-call" onclick="setType('call')">Call</button>
+          <button id="btn-put" onclick="setType('put')">Put</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Position</label>
+        <div class="pos-toggle">
+          <button id="btn-long" class="active" onclick="setPos('long')">Long (Buy)</button>
+          <button id="btn-short" onclick="setPos('short')">Short (Sell)</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Current Stock Price ($)</label>
+        <input type="number" id="stockPrice" value="185.00" step="0.01" />
+      </div>
+
+      <div class="field">
+        <label>Strike Price ($)</label>
+        <input type="number" id="strike" value="190.00" step="0.01"
+          onchange="fetchPremium()" oninput="calculate()" />
+      </div>
+
+      <div class="field">
+        <label>Premium Paid ($)</label>
+        <input type="number" id="premium" value="3.50" step="0.01" oninput="calculate()" />
+        <div class="ticker-status" id="premium-status"></div>
+      </div>
+
+      <div class="field">
+        <label>Expiration Date</label>
+        <input type="date" id="expDate" oninput="updateExpDate(this.value)" />
+        <div class="days-display" id="dte-label">— days to expiry</div>
+      </div>
+
+      <div class="field">
+        <label>Implied Volatility (%) <span style="color:var(--dim);font-size:0.65rem;text-transform:none;letter-spacing:0">— affects option price &amp; Greeks</span></label>
+        <div class="slider-wrap">
+          <input type="range" id="iv" min="1" max="200" value="30" oninput="updateIV(this.value)" />
+          <span class="slider-val" id="iv-val">30%</span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Contracts (x100 shares)</label>
+        <input type="number" id="contracts" value="1" min="1" step="1" />
+      </div>
+
+      <div class="field">
+        <label>Strategy</label>
+        <select id="strategy" onchange="calculate()">
+          <option value="covered_call">Covered Call</option>
+          <option value="csp">Cash-Secured Put</option>
+          <option value="long_option">Long Call / Put</option>
+          <option value="vertical_spread">Vertical Spread</option>
+        </select>
+      </div>
+
+      <!-- Spread leg 2 — only shown for vertical spreads -->
+      <div class="field" id="spread-field" style="display:none;">
+        <label>Short Strike ($) <span style="color:var(--dim);font-size:0.65rem;text-transform:none;letter-spacing:0">— the leg you sell</span></label>
+        <input type="number" id="shortStrike" value="195.00" step="0.01" oninput="calculate()" />
+      </div>
+      <div class="field" id="spread-credit-field" style="display:none;">
+        <label>Net Credit / Debit ($) <span style="color:var(--dim);font-size:0.65rem;text-transform:none;letter-spacing:0">— total premium received</span></label>
+        <input type="number" id="spreadCredit" value="1.50" step="0.01" oninput="calculate()" />
+      </div>
+      <button class="calc-btn" onclick="calculate()">Calculate P&amp;L →</button>
+    </div>
+    <div>
+      <div class="stats-row" id="stats-row">
+        <div class="stat-card">
+          <div class="stat-label">Option Price</div>
+          <div class="stat-value accent" id="stat-price">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Break-Even</div>
+          <div class="stat-value" id="stat-be">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Max Profit</div>
+          <div class="stat-value pos" id="stat-maxp">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Max Loss</div>
+          <div class="stat-value neg" id="stat-maxl">—</div>
+        </div>
+      </div>
+
+      <!-- ANNUALIZED RETURN BANNER -->
+      <div class="ann-banner" id="ann-banner">
+        <div class="ann-main">
+          <div class="ann-label" id="ann-strategy-label">Covered Call</div>
+          <div class="ann-return" id="ann-return">—</div>
+          <div class="ann-sub">annualized return</div>
+        </div>
+        <div class="ann-details">
+          <div class="ann-detail-item">
+            <span class="ann-detail-label">Capital at Risk</span>
+            <span class="ann-detail-val" id="ann-capital">—</span>
+          </div>
+          <div class="ann-detail-item">
+            <span class="ann-detail-label">Return / Trade</span>
+            <span class="ann-detail-val" id="ann-trade-return">—</span>
+          </div>
+          <div class="ann-detail-item">
+            <span class="ann-detail-label">Days</span>
+            <span class="ann-detail-val" id="ann-days">—</span>
+          </div>
+        </div>
+        <div class="ann-note" id="ann-note"></div>
+      </div>
+
+      <div class="panel" style="padding: 16px;">
+        <div class="panel-title">P&L at Expiration (by Stock Price)</div>
+        <div class="chart-container" id="chart-container">
+          <div class="placeholder" id="placeholder">Enter parameters and calculate</div>
+          <canvas id="plChart" style="display:none;"></canvas>
+          <div class="tooltip-box" id="tooltip"></div>
+        </div>
+
+        <div class="greeks-row">
+          <div class="greek-card">
+            <div class="greek-name">Delta (Δ)</div>
+            <div class="greek-val" id="g-delta">—</div>
+          </div>
+          <div class="greek-card">
+            <div class="greek-name">Gamma (Γ)</div>
+            <div class="greek-val" id="g-gamma">—</div>
+          </div>
+          <div class="greek-card">
+            <div class="greek-name">Theta (Θ)</div>
+            <div class="greek-val" id="g-theta">—</div>
+          </div>
+          <div class="greek-card">
+            <div class="greek-name">Vega (ν)</div>
+            <div class="greek-val" id="g-vega">—</div>
+          </div>
+          <div class="greek-card">
+            <div class="greek-name">Rho (ρ)</div>
+            <div class="greek-val" id="g-rho">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // --- State ---
+  let optionType = 'call';
+  let position = 'long';
+
+  function setType(t) {
+    optionType = t;
+    document.getElementById('btn-call').className = t === 'call' ? 'active-call' : '';
+    document.getElementById('btn-put').className = t === 'put' ? 'active-put' : '';
+    fetchPremium();
+  }
+
+  function setPos(p) {
+    position = p;
+    document.getElementById('btn-long').className = p === 'long' ? 'active' : '';
+    document.getElementById('btn-short').className = p === 'short' ? 'active' : '';
+  }
+
+  function getDTE() {
+    const val = document.getElementById('expDate').value;
+    if (!val) return 30;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const exp = new Date(val + 'T00:00:00');
+    const diff = Math.round((exp - today) / (1000 * 60 * 60 * 24));
+    return Math.max(diff, 1);
+  }
+
+  function updateExpDate(val) {
+    const dte = getDTE();
+    const weeks = Math.round(dte / 7);
+    const months = (dte / 30).toFixed(1);
+    let label = dte <= 1 ? 'Expires today' : dte <= 7 ? `${dte} days to expiry` : dte <= 60 ? `~${weeks} weeks to expiry` : `~${months} months to expiry`;
+    document.getElementById('dte-label').textContent = label;
+    fetchPremium();
+    calculate();
+  }
+
+  function setDefaultExpDate() {
+    // Default to ~30 days out, snapped to a Friday (typical options expiry)
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    // Roll forward to nearest Friday
+    while (d.getDay() !== 5) d.setDate(d.getDate() + 1);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    document.getElementById('expDate').value = `${yyyy}-${mm}-${dd}`;
+    // Set min date to tomorrow
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const ty = tomorrow.getFullYear();
+    const tm = String(tomorrow.getMonth() + 1).padStart(2, '0');
+    const td = String(tomorrow.getDate()).padStart(2, '0');
+    document.getElementById('expDate').min = `${ty}-${tm}-${td}`;
+    updateExpDate(document.getElementById('expDate').value);
+  }
+
+  function updateIV(v) {
+    document.getElementById('iv-val').textContent = v + '%';
+    calculate();
+  }
+
+  // --- Strategy toggle ---
+  function onStrategyChange() {
+    const s = document.getElementById('strategy').value;
+    document.getElementById('spread-field').style.display = s === 'vertical_spread' ? 'block' : 'none';
+    document.getElementById('spread-credit-field').style.display = s === 'vertical_spread' ? 'block' : 'none';
+    calculate();
+  }
+  document.getElementById('strategy').addEventListener('change', onStrategyChange);
+
+  // --- Annualized Return ---
+  function calcAnnualizedReturn(S, K, premium, dte, contracts) {
+    const strategy = document.getElementById('strategy').value;
+    const annEl = document.getElementById('ann-return');
+    const daysEl = document.getElementById('ann-days');
+    const capitalEl = document.getElementById('ann-capital');
+    const tradeEl = document.getElementById('ann-trade-return');
+    const labelEl = document.getElementById('ann-strategy-label');
+    const noteEl = document.getElementById('ann-note');
+
+    if (!dte || dte < 1) return;
+
+    let capital, maxProfitPerContract, note, label;
+
+    if (strategy === 'covered_call') {
+      // Capital = stock cost minus premium received
+      capital = (S * 100 - premium * 100) * contracts;
+      maxProfitPerContract = premium * 100;
+      label = 'Covered Call';
+      note = `Capital = (Stock Price − Premium) × 100 × contracts. Max profit assumes stock called away at strike.`;
+
+    } else if (strategy === 'csp') {
+      // Capital = cash needed to buy shares if assigned (strike × 100)
+      capital = K * 100 * contracts;
+      maxProfitPerContract = premium * 100;
+      label = 'Cash-Secured Put';
+      note = `Capital = Strike × 100 × contracts (cash reserved for assignment). Max profit = full premium kept if expires worthless.`;
+
+    } else if (strategy === 'long_option') {
+      // Capital = premium paid
+      capital = premium * 100 * contracts;
+      maxProfitPerContract = null; // unlimited for calls
+      label = optionType === 'call' ? 'Long Call' : 'Long Put';
+      note = `Annualized return based on premium paid as capital. Long options have unlimited upside — return shown assumes option doubles in value.`;
+      // Show return if option doubles
+      const gain = premium * 100 * contracts;
+      const tradeReturn = (gain / capital) * 100;
+      const annReturn = tradeReturn * (365 / dte);
+      annEl.textContent = annReturn.toFixed(1) + '%';
+      annEl.className = 'ann-return ' + (annReturn >= 0 ? '' : 'neg');
+      capitalEl.textContent = '$' + capital.toLocaleString(undefined, {maximumFractionDigits: 0});
+      tradeEl.textContent = '+' + tradeReturn.toFixed(1) + '%';
+      daysEl.textContent = dte + 'd';
+      labelEl.textContent = label;
+      noteEl.textContent = note;
+      return;
+
+    } else if (strategy === 'vertical_spread') {
+      const shortStrike = parseFloat(document.getElementById('shortStrike').value) || K + 5;
+      const netCredit = parseFloat(document.getElementById('spreadCredit').value) || premium;
+      const width = Math.abs(shortStrike - K);
+      // Max loss = spread width − net credit
+      capital = (width - netCredit) * 100 * contracts;
+      maxProfitPerContract = netCredit * 100;
+      label = optionType === 'call' ? 'Call Vertical Spread' : 'Put Vertical Spread';
+      note = `Capital at risk = (Spread Width − Net Credit) × 100 × contracts. Max profit = full credit kept if both legs expire worthless.`;
+    }
+
+    const totalMaxProfit = maxProfitPerContract * contracts;
+    const tradeReturn = (totalMaxProfit / capital) * 100;
+    const annReturn = tradeReturn * (365 / dte);
+
+    annEl.textContent = annReturn.toFixed(1) + '%';
+    annEl.className = 'ann-return ' + (annReturn >= 0 ? '' : 'neg');
+    capitalEl.textContent = '$' + capital.toLocaleString(undefined, {maximumFractionDigits: 0});
+    tradeEl.textContent = (tradeReturn >= 0 ? '+' : '') + tradeReturn.toFixed(2) + '%';
+    daysEl.textContent = dte + 'd';
+    labelEl.textContent = label;
+    noteEl.textContent = note;
+  }
+  function normCDF(x) {
+    const a1=0.254829592, a2=-0.284496736, a3=1.421413741, a4=-1.453152027, a5=1.061405429, p=0.3275911;
+    const sign = x < 0 ? -1 : 1;
+    x = Math.abs(x) / Math.sqrt(2);
+    const t = 1 / (1 + p * x);
+    const y = 1 - (((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-x*x);
+    return 0.5 * (1 + sign * y);
+  }
+
+  function normPDF(x) {
+    return Math.exp(-0.5 * x * x) / Math.sqrt(2 * Math.PI);
+  }
+
+  function blackScholes(S, K, T, r, sigma, type) {
+    if (T <= 0) {
+      if (type === 'call') return Math.max(S - K, 0);
+      return Math.max(K - S, 0);
+    }
+    const d1 = (Math.log(S / K) + (r + 0.5 * sigma * sigma) * T) / (sigma * Math.sqrt(T));
+    const d2 = d1 - sigma * Math.sqrt(T);
+    let price, delta, gamma, theta, vega, rho;
+
+    if (type === 'call') {
+      price = S * normCDF(d1) - K * Math.exp(-r * T) * normCDF(d2);
+      delta = normCDF(d1);
+      rho = K * T * Math.exp(-r * T) * normCDF(d2) / 100;
+    } else {
+      price = K * Math.exp(-r * T) * normCDF(-d2) - S * normCDF(-d1);
+      delta = normCDF(d1) - 1;
+      rho = -K * T * Math.exp(-r * T) * normCDF(-d2) / 100;
+    }
+
+    gamma = normPDF(d1) / (S * sigma * Math.sqrt(T));
+    theta = (-(S * normPDF(d1) * sigma) / (2 * Math.sqrt(T)) - r * K * Math.exp(-r * T) * (type === 'call' ? normCDF(d2) : normCDF(-d2))) / 365;
+    vega = S * normPDF(d1) * Math.sqrt(T) / 100;
+
+    return { price, delta, gamma, theta, vega, rho };
+  }
+
+  // --- Calculate ---
+  function calculate() {
+    const S = parseFloat(document.getElementById('stockPrice').value);
+    const K = parseFloat(document.getElementById('strike').value);
+    const premium = parseFloat(document.getElementById('premium').value);
+    const dte = getDTE();
+    const iv = parseFloat(document.getElementById('iv').value) / 100;
+    const contracts = parseInt(document.getElementById('contracts').value);
+    const r = 0.045; // risk-free rate
+    const T = dte / 365;
+    const mult = position === 'long' ? 1 : -1;
+
+    const bs = blackScholes(S, K, T, r, iv, optionType);
+    const modelPrice = bs.price;
+
+    // Stats
+    const costBasis = premium * 100 * contracts;
+    let breakEven, maxProfit, maxLoss;
+
+    if (position === 'long') {
+      breakEven = optionType === 'call' ? K + premium : K - premium;
+      maxLoss = -costBasis;
+      maxProfit = optionType === 'call' ? 'Unlimited' : ((K - premium) * 100 * contracts).toFixed(2);
+    } else {
+      breakEven = optionType === 'call' ? K + premium : K - premium;
+      maxProfit = costBasis;
+      maxLoss = optionType === 'call' ? 'Unlimited' : (-(K - premium) * 100 * contracts).toFixed(2);
+    }
+
+    document.getElementById('stat-price').textContent = '$' + modelPrice.toFixed(2);
+    document.getElementById('stat-be').textContent = '$' + breakEven.toFixed(2);
+    document.getElementById('stat-maxp').textContent = maxProfit === 'Unlimited' ? '∞' : '$' + parseFloat(maxProfit).toLocaleString();
+    document.getElementById('stat-maxl').textContent = maxLoss === 'Unlimited' ? '-∞' : '$' + parseFloat(maxLoss).toLocaleString();
+
+    // Greeks
+    document.getElementById('g-delta').textContent = (bs.delta * mult).toFixed(4);
+    document.getElementById('g-gamma').textContent = bs.gamma.toFixed(4);
+    document.getElementById('g-theta').textContent = (bs.theta * mult).toFixed(4);
+    document.getElementById('g-vega').textContent = (bs.vega * mult).toFixed(4);
+    document.getElementById('g-rho').textContent = (bs.rho * mult).toFixed(4);
+
+    // Annualized Return
+    calcAnnualizedReturn(S, K, premium, dte, contracts);
+
+    // Chart data
+    const range = S * 0.4;
+    const prices = [];
+    const pls = [];
+    const steps = 120;
+
+    for (let i = 0; i <= steps; i++) {
+      const price = S - range + (2 * range * i / steps);
+      prices.push(price);
+      let payoff;
+      if (optionType === 'call') payoff = Math.max(price - K, 0);
+      else payoff = Math.max(K - price, 0);
+
+      let pl;
+      if (position === 'long') pl = (payoff - premium) * 100 * contracts;
+      else pl = (premium - payoff) * 100 * contracts;
+      pls.push(pl);
+    }
+
+    drawChart(prices, pls, S, K, breakEven, premium, contracts);
+  }
+
+  // --- Draw Chart ---
+  function drawChart(prices, pls, S, K, breakEven, premium, contracts) {
+    const placeholder = document.getElementById('placeholder');
+    const canvas = document.getElementById('plChart');
+    placeholder.style.display = 'none';
+    canvas.style.display = 'block';
+
+    const container = document.getElementById('chart-container');
+    canvas.width = container.clientWidth;
+    canvas.height = container.clientHeight;
+
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width;
+    const H = canvas.height;
+    const pad = { top: 24, right: 24, bottom: 40, left: 70 };
+    const chartW = W - pad.left - pad.right;
+    const chartH = H - pad.top - pad.bottom;
+
+    ctx.clearRect(0, 0, W, H);
+
+    const minPL = Math.min(...pls);
+    const maxPL = Math.max(...pls);
+    const plRange = maxPL - minPL || 1;
+    const minP = prices[0];
+    const maxP = prices[prices.length - 1];
+    const pRange = maxP - minP;
+
+    const toX = p => pad.left + ((p - minP) / pRange) * chartW;
+    const toY = v => pad.top + ((maxPL - v) / plRange) * chartH;
+
+    // Grid lines
+    ctx.strokeStyle = 'rgba(30,42,56,0.8)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= 4; i++) {
+      const y = pad.top + (i / 4) * chartH;
+      ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + chartW, y); ctx.stroke();
+    }
+    for (let i = 0; i <= 5; i++) {
+      const x = pad.left + (i / 5) * chartW;
+      ctx.beginPath(); ctx.moveTo(x, pad.top); ctx.lineTo(x, pad.top + chartH); ctx.stroke();
+    }
+
+    // Zero line
+    const zeroY = toY(0);
+    ctx.strokeStyle = 'rgba(0,229,255,0.25)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.moveTo(pad.left, zeroY); ctx.lineTo(pad.left + chartW, zeroY); ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Fill areas
+    const zeroYClamped = Math.min(Math.max(zeroY, pad.top), pad.top + chartH);
+
+    // Profit fill (green)
+    ctx.beginPath();
+    ctx.moveTo(toX(prices[0]), zeroYClamped);
+    prices.forEach((p, i) => {
+      const y = Math.min(toY(pls[i]), zeroYClamped);
+      ctx.lineTo(toX(p), y);
+    });
+    ctx.lineTo(toX(prices[prices.length - 1]), zeroYClamped);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(0,255,136,0.08)';
+    ctx.fill();
+
+    // Loss fill (red)
+    ctx.beginPath();
+    ctx.moveTo(toX(prices[0]), zeroYClamped);
+    prices.forEach((p, i) => {
+      const y = Math.max(toY(pls[i]), zeroYClamped);
+      ctx.lineTo(toX(p), y);
+    });
+    ctx.lineTo(toX(prices[prices.length - 1]), zeroYClamped);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(255,61,90,0.08)';
+    ctx.fill();
+
+    // P&L line
+    ctx.beginPath();
+    prices.forEach((p, i) => {
+      const x = toX(p), y = toY(pls[i]);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.strokeStyle = '#00e5ff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Vertical markers
+    const drawVLine = (price, color, label) => {
+      if (price < minP || price > maxP) return;
+      const x = toX(price);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath(); ctx.moveTo(x, pad.top); ctx.lineTo(x, pad.top + chartH); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = color;
+      ctx.font = '10px Share Tech Mono';
+      ctx.fillText(label, x + 3, pad.top + 12);
+    };
+
+    drawVLine(S, 'rgba(0,229,255,0.7)', 'CURRENT');
+    drawVLine(K, 'rgba(180,180,180,0.6)', 'STRIKE');
+    drawVLine(breakEven, 'rgba(0,255,136,0.7)', 'B/E');
+
+    // Y-axis labels
+    ctx.fillStyle = '#3a4a5c';
+    ctx.font = '10px Share Tech Mono';
+    ctx.textAlign = 'right';
+    for (let i = 0; i <= 4; i++) {
+      const val = maxPL - (i / 4) * plRange;
+      const y = pad.top + (i / 4) * chartH;
+      const label = val >= 0 ? '+$' + Math.abs(val).toFixed(0) : '-$' + Math.abs(val).toFixed(0);
+      ctx.fillStyle = val > 0 ? '#00ff88' : val < 0 ? '#ff3d5a' : '#3a4a5c';
+      ctx.fillText(label, pad.left - 6, y + 4);
+    }
+
+    // X-axis labels
+    ctx.fillStyle = '#3a4a5c';
+    ctx.textAlign = 'center';
+    for (let i = 0; i <= 5; i++) {
+      const p = minP + (i / 5) * pRange;
+      const x = pad.left + (i / 5) * chartW;
+      ctx.fillText('$' + p.toFixed(0), x, pad.top + chartH + 18);
+    }
+
+    // Tooltip on hover
+    const tooltip = document.getElementById('tooltip');
+    canvas.onmousemove = (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const price = minP + ((mx - pad.left) / chartW) * pRange;
+      if (price < minP || price > maxP) { tooltip.style.display = 'none'; return; }
+      const idx = Math.round(((price - minP) / pRange) * (prices.length - 1));
+      const pl = pls[idx] || 0;
+      const sign = pl >= 0 ? '+' : '';
+      tooltip.style.display = 'block';
+      tooltip.style.left = (mx + 12) + 'px';
+      tooltip.style.top = '12px';
+      tooltip.style.color = pl >= 0 ? '#00ff88' : '#ff3d5a';
+      tooltip.innerHTML = `Stock: $${prices[idx].toFixed(2)}<br>P&L: ${sign}$${pl.toFixed(2)}`;
+    };
+    canvas.onmouseleave = () => { tooltip.style.display = 'none'; };
+  }
+
+  // --- Live data ---
+  const API = 'https://options-pl-backend.onrender.com';
+  let fetchTimer = null;
+  let premiumTimer = null;
+
+  function setStatus(state, text) {
+    const dot = document.getElementById('status-dot');
+    const txt = document.getElementById('status-text');
+    dot.className = 'status-dot ' + state;
+    txt.className = 'status-text ' + state;
+    txt.textContent = text;
+  }
+
+  async function initServer() {
+    setStatus('connecting', 'Connecting...');
+    try {
+      const res = await fetch(`${API}/health`, { signal: AbortSignal.timeout(35000) });
+      if (res.ok) {
+        setStatus('live', 'Live');
+        fetchQuote();
+      } else {
+        setStatus('offline', 'Offline — enter prices manually');
+      }
+    } catch {
+      setStatus('offline', 'Offline — enter prices manually');
+    }
+  }
+
+  function onTickerInput(val) {
+    clearTimeout(fetchTimer);
+    if (val.length >= 1) {
+      fetchTimer = setTimeout(() => fetchQuote(), 800);
+    }
+  }
+
+  async function fetchQuote() {
+    const ticker = document.getElementById('ticker').value.trim().toUpperCase();
+    if (!ticker) return;
+
+    const statusEl = document.getElementById('ticker-status');
+    const nameEl = document.getElementById('ticker-name');
+    statusEl.className = 'ticker-status loading';
+    statusEl.textContent = 'Fetching...';
+    nameEl.textContent = '';
+    setStatus('connecting', 'Fetching...');
+
+    try {
+      const res = await fetch(`${API}/quote/${ticker}`, { signal: AbortSignal.timeout(20000) });
+      if (!res.ok) throw new Error('Bad response');
+      const data = await res.json();
+
+      if (data.error) {
+        statusEl.className = 'ticker-status error';
+        statusEl.textContent = '✗ ' + data.error;
+        setStatus('offline', 'Error');
+        return;
+      }
+
+      document.getElementById('stockPrice').value = data.price.toFixed(2);
+      if (data.iv) {
+        document.getElementById('iv').value = Math.round(data.iv);
+        document.getElementById('iv-val').textContent = Math.round(data.iv) + '%';
+      }
+
+      const atm = Math.round(data.price / 5) * 5;
+      document.getElementById('strike').value = atm.toFixed(2);
+
+      statusEl.className = 'ticker-status success';
+      statusEl.innerHTML = '<span class="live-dot"></span>$' + data.price.toFixed(2) + (data.iv ? ' · IV ' + data.iv + '%' : '');
+      nameEl.textContent = data.name;
+      setStatus('live', 'Live');
+
+      fetchPremium();
+      calculate();
+
+    } catch (err) {
+      statusEl.className = 'ticker-status error';
+      statusEl.textContent = '✗ Could not reach server — try again';
+      setStatus('offline', 'Offline');
+    }
+  }
+
+  async function fetchPremium() {
+    const ticker = document.getElementById('ticker').value.trim().toUpperCase();
+    const strike = document.getElementById('strike').value;
+    const expDate = document.getElementById('expDate').value;
+    if (!ticker || !strike || !expDate) return;
+
+    clearTimeout(premiumTimer);
+    premiumTimer = setTimeout(async () => {
+      const statusEl = document.getElementById('premium-status');
+      statusEl.className = 'ticker-status loading';
+      statusEl.textContent = 'Fetching premium...';
+
+      try {
+        const res = await fetch(
+          `${API}/premium/${ticker}/${optionType}/${expDate}/${strike}`,
+          { signal: AbortSignal.timeout(15000) }
+        );
+        if (!res.ok) throw new Error('Bad response');
+        const data = await res.json();
+
+        if (data.error) {
+          statusEl.className = 'ticker-status error';
+          statusEl.textContent = '✗ ' + data.error;
+          return;
+        }
+
+        document.getElementById('premium').value = data.mid.toFixed(2);
+        if (data.iv) {
+          document.getElementById('iv').value = Math.round(data.iv);
+          document.getElementById('iv-val').textContent = Math.round(data.iv) + '%';
+        }
+
+        let msg = `<span class="live-dot"></span>Mid $${data.mid.toFixed(2)}`;
+        if (data.bid && data.ask) msg += ` · Bid $${data.bid.toFixed(2)} / Ask $${data.ask.toFixed(2)}`;
+        if (data.volume) msg += ` · Vol ${data.volume.toLocaleString()}`;
+        if (data.days_diff > 0) msg += ` · Snapped to ${data.expiration}`;
+
+        statusEl.className = 'ticker-status success';
+        statusEl.innerHTML = msg;
+        calculate();
+
+      } catch {
+        document.getElementById('premium-status').className = 'ticker-status error';
+        document.getElementById('premium-status').textContent = '✗ Could not fetch premium';
+      }
+    }, 400);
+  }
+
+  initServer();
+
+  // Init
+  setDefaultExpDate();
+  calculate();
+</script>
+</body>
+</html>
