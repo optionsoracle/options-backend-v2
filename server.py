@@ -1,9 +1,8 @@
-## “””
-Options P&L Calculator - Backend Server
+# Options P&L Calculator - Backend Server
 
-Deployed on Render.com. Fetches live stock price,
-implied volatility, and options premium via yfinance.
-“””
+# Deployed on Render.com. Fetches live stock price,
+
+# implied volatility, and options premium via yfinance.
 
 import os
 import math
