@@ -225,6 +225,65 @@ try:
 
             name = info.get("shortName") or info.get("longName") or ticker
 
+            # --- Earnings date ---
+            earnings_date = None
+            earnings_warning = False
+            try:
+                cal = stock.calendar
+                if cal is not None and not cal.empty:
+                    # calendar is a DataFrame with dates as columns
+                    if "Earnings Date" in cal.index:
+                        ed = cal.loc["Earnings Date"].iloc[0]
+                    elif "Earnings Date" in cal.columns:
+                        ed = cal["Earnings Date"].iloc[0]
+                    else:
+                        ed = None
+                    if ed is not None:
+                        if hasattr(ed, "date"):
+                            ed = ed.date()
+                        ed_str = str(ed)[:10]
+                        earnings_date = ed_str
+                        ed_dt = datetime.strptime(ed_str, "%Y-%m-%d")
+                        if ed_dt <= req_date:
+                            earnings_warning = True
+            except Exception:
+                pass
+
+            # --- IV rank vs historical volatility ---
+            iv_rank_label = None
+            iv_rank_pct = None
+            try:
+                hist = stock.history(period="90d")
+                if hist is not None and len(hist) > 10:
+                    import numpy as np
+                    closes = hist["Close"].values
+                    log_returns = np.diff(np.log(closes))
+                    hv_30 = float(np.std(log_returns[-30:]) * np.sqrt(252) * 100)
+                    # Get current IV from nearest expiry ATM option
+                    atm_strike = round(price / 5) * 5
+                    try:
+                        chain_iv = stock.option_chain(stock.options[0])
+                        calls_iv = chain_iv.calls.copy()
+                        calls_iv["distance"] = abs(calls_iv["strike"] - atm_strike)
+                        atm_row = calls_iv.sort_values("distance").iloc[0]
+                        current_iv = safe_float(atm_row.get("impliedVolatility"))
+                        if current_iv:
+                            current_iv_pct = current_iv * 100
+                            ratio = current_iv_pct / hv_30 if hv_30 > 0 else 1
+                            iv_rank_pct = round(current_iv_pct, 1)
+                            if ratio >= 2.0:
+                                iv_rank_label = "Extreme"
+                            elif ratio >= 1.5:
+                                iv_rank_label = "High"
+                            elif ratio >= 1.15:
+                                iv_rank_label = "Elevated"
+                            else:
+                                iv_rank_label = "Normal"
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
             # Snap to nearest expiration
             expirations = stock.options
             if not expirations:
@@ -339,6 +398,10 @@ try:
                 "price": round(price, 2),
                 "expiration": nearest_str,
                 "dte": dte,
+                "earnings_date": earnings_date,
+                "earnings_warning": earnings_warning,
+                "iv_rank_label": iv_rank_label,
+                "iv_rank_pct": iv_rank_pct,
                 "strikes": top3
             })
 
